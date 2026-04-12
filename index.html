@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockSafe — Inventory</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --border: #252a38;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --accent: #4ade80;
+    --warn: #facc15;
+    --danger: #f87171;
+    --danger-bg: rgba(248,113,113,0.08);
+    --warn-bg: rgba(250,204,21,0.08);
+    --accent-bg: rgba(74,222,128,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* AUTH SCREEN */
+  #auth-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .auth-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 32px;
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .auth-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .auth-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 32px;
+    color: var(--text);
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  .field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus {
+    border-color: var(--accent);
+  }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #0f1117;
+    border: none;
+    border-radius: 10px;
+    padding: 15px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .auth-error {
+    background: var(--danger-bg);
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--danger);
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  /* APP SCREEN */
+  #app-screen { display: none; }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topbar-left {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-signout {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 14px;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-signout:hover { border-color: var(--muted); color: var(--text); }
+
+  .content {
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .summary-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 26px;
+    font-weight: 500;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .stat-card.danger .stat-num { color: var(--danger); }
+  .stat-card.warn .stat-num { color: var(--warn); }
+  .stat-card.ok .stat-num { color: var(--accent); }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .btn-add {
+    background: var(--accent-bg);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 7px 14px;
+    color: var(--accent);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-add:hover { background: var(--accent); color: #0f1117; }
+
+  .search-bar {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  .search-bar:focus { border-color: var(--accent); }
+  .search-bar::placeholder { color: var(--muted); }
+
+  .items-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .item-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .item-card:hover { border-color: #3a4055; transform: translateY(-1px); }
+  .item-card.danger { border-left: 3px solid var(--danger); }
+  .item-card.warn { border-left: 3px solid var(--warn); }
+  .item-card.ok { border-left: 3px solid var(--accent); }
+
+  .item-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-dot.danger { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .status-dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+  .status-dot.ok { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+  .item-name {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  .item-qty {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .item-qty.danger { color: var(--danger); }
+  .item-qty.warn { color: var(--warn); }
+  .item-qty.ok { color: var(--accent); }
+
+  .item-threshold {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .big { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open {
+    display: flex;
+    animation: fadeIn 0.15s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 480px;
+    animation: slideUp 0.2s ease;
+  }
+
+  .modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .modal-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+
+  .current-qty-display {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .current-qty-display .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+
+  .current-qty-display .number {
+    font-family: 'DM Mono', monospace;
+    font-size: 48px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .adjust-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .adjust-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  .adjust-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    outline: none;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .adjust-input:focus { border-color: var(--accent); }
+
+  .hint-text {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn-cancel {
+    flex: 1;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-cancel:hover { border-color: var(--muted); color: var(--text); }
+
+  .btn-save {
+    flex: 2;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    color: #0f1117;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn-save:hover { opacity: 0.9; }
+  .btn-save:active { transform: scale(0.98); }
+  .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ADD ITEM MODAL */
+  .add-field { margin-bottom: 14px; }
+  .add-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .add-field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .add-field input:focus { border-color: var(--accent); }
+
+  .delete-btn {
+    background: var(--danger-bg);
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: var(--danger);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 16px;
+    width: 100%;
+    transition: all 0.2s;
+  }
+  .delete-btn:hover { background: var(--danger); color: white; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 999;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--accent); color: var(--accent); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">StockSafe</div>
+    <div class="auth-title">Sign in to your inventory</div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="signIn()">Sign In</button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-left">StockSafe</div>
+    <div class="topbar-right">
+      <button class="btn-signout" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="summary-row">
+      <div class="stat-card danger">
+        <div class="stat-num" id="stat-low">—</div>
+        <div class="stat-label">Low Stock</div>
+      </div>
+      <div class="stat-card warn">
+        <div class="stat-num" id="stat-warn">—</div>
+        <div class="stat-label">Warning</div>
+      </div>
+      <div class="stat-card ok">
+        <div class="stat-num" id="stat-ok">—</div>
+        <div class="stat-label">In Stock</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">All Items</div>
+      <button class="btn-add" onclick="openAddModal()">+ Add Item</button>
+    </div>
+
+    <input class="search-bar" type="text" placeholder="Search items..." id="search-input" oninput="renderItems()">
+
+    <div class="items-list" id="items-list">
+      <div class="loading">Loading inventory...</div>
+    </div>
+  </div>
+</div>
+
+<!-- UPDATE MODAL -->
+<div class="modal-overlay" id="update-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-item-name">Item Name</div>
+    <div class="modal-subtitle">Update quantity</div>
+
+    <div class="current-qty-display">
+      <div class="label">Current Quantity</div>
+      <div class="number" id="modal-current-qty">0</div>
+    </div>
+
+    <div class="adjust-label">Adjust by (use - to subtract)</div>
+    <div class="adjust-row">
+      <input class="adjust-input" type="number" id="adjust-input" placeholder="e.g. -5 or +10">
+    </div>
+    <div class="hint-text">Type a positive number to add, negative to subtract</div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeUpdateModal()">Cancel</button>
+      <button class="btn-save" id="save-btn" onclick="saveUpdate()">Save</button>
+    </div>
+
+    <button class="delete-btn" onclick="deleteItem()">Delete this item</button>
+  </div>
+</div>
+
+<!-- ADD ITEM MODAL -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-title">Add New Item</div>
+    <div class="modal-subtitle">Enter item details below</div>
+
+    <div class="add-field">
+      <label>Item Name</label>
+      <input type="text" id="new-item-name" placeholder="e.g. Cardboard Boxes (Large)">
+    </div>
+    <div class="add-field">
+      <label>Starting Quantity</label>
+      <input type="number" id="new-item-qty" placeholder="e.g. 100" min="0">
+    </div>
+    <div class="add-field">
+      <label>Low Stock Alert At</label>
+      <input type="number" id="new-item-threshold" placeholder="e.g. 20" min="0">
+    </div>
+
+    <div class="modal-actions" style="margin-top:8px">
+      <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-save" id="add-save-btn" onclick="saveNewItem()">Create Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://innhdnwvjywbycnrdggv.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlubmhkbnd2anl3YnljbnJkZ2d2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMTQ0NDMsImV4cCI6MjA5MTU5MDQ0M30.B6dbdVGjzH31oONI31t4XYOMa-qoVsCEmevfwsFt6Yc';
+
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let items = [];
+  let selectedItem = null;
+
+  // ---- AUTH ----
+  async function checkSession() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) showApp();
+    else showAuth();
+  }
+
+  function showAuth() {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display = 'none';
+  }
+
+  function showApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    loadItems();
+  }
+
+  async function signIn() {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const btn = document.getElementById('login-btn');
+    const errEl = document.getElementById('auth-error');
+
+    if (!email || !password) {
+      showAuthError('Please enter your email and password.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+    errEl.style.display = 'none';
+
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      showAuthError(error.message);
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    } else {
+      showApp();
+    }
+  }
+
+  async function signOut() {
+    await sb.auth.signOut();
+    showAuth();
+  }
+
+  function showAuthError(msg) {
+    const el = document.getElementById('auth-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  document.getElementById('auth-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') signIn();
+  });
+
+  // ---- ITEMS ----
+  async function loadItems() {
+    const { data, error } = await sb.from('items').select('*').order('name');
+    if (error) { showToast('Failed to load items', 'error'); return; }
+    items = data || [];
+    renderItems();
+    updateStats();
+  }
+
+  function getStatus(item) {
+    if (item.quantity <= item.low_stock_threshold) return 'danger';
+    if (item.quantity <= item.low_stock_threshold * 1.5) return 'warn';
+    return 'ok';
+  }
+
+  function renderItems() {
+    const query = document.getElementById('search-input').value.toLowerCase();
+    const filtered = items.filter(i => i.name.toLowerCase().includes(query));
+    const list = document.getElementById('items-list');
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="big">📦</div><p>${query ? 'No items match your search.' : 'No items yet. Add your first item!'}</p></div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(item => {
+      const status = getStatus(item);
+      return `
+        <div class="item-card ${status}" onclick="openUpdateModal('${item.id}')">
+          <div class="item-left">
+            <div class="status-dot ${status}"></div>
+            <div class="item-name">${escHtml(item.name)}</div>
+          </div>
+          <div class="item-right">
+            <div class="item-qty ${status}">${item.quantity}</div>
+            <div class="item-threshold">/ ${item.low_stock_threshold}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function updateStats() {
+    const low = items.filter(i => getStatus(i) === 'danger').length;
+    const warn = items.filter(i => getStatus(i) === 'warn').length;
+    const ok = items.filter(i => getStatus(i) === 'ok').length;
+    document.getElementById('stat-low').textContent = low;
+    document.getElementById('stat-warn').textContent = warn;
+    document.getElementById('stat-ok').textContent = ok;
+  }
+
+  // ---- UPDATE MODAL ----
+  function openUpdateModal(id) {
+    selectedItem = items.find(i => i.id === id);
+    if (!selectedItem) return;
+    document.getElementById('modal-item-name').textContent = selectedItem.name;
+    document.getElementById('modal-current-qty').textContent = selectedItem.quantity;
+    document.getElementById('adjust-input').value = '';
+    document.getElementById('update-modal').classList.add('open');
+    setTimeout(() => document.getElementById('adjust-input').focus(), 200);
+  }
+
+  function closeUpdateModal() {
+    document.getElementById('update-modal').classList.remove('open');
+    selectedItem = null;
+  }
+
+  async function saveUpdate() {
+    const raw = document.getElementById('adjust-input').value;
+    const change = parseInt(raw);
+
+    if (isNaN(change) || raw === '') {
+      showToast('Enter a number to adjust by', 'error');
+      return;
+    }
+
+    const newQty = selectedItem.quantity + change;
+    if (newQty < 0) {
+      showToast('Quantity cannot go below 0', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    const { error } = await sb.from('items')
+      .update({ quantity: newQty })
+      .eq('id', selectedItem.id);
+
+    btn.disabled = false;
+    btn.textContent = 'Save';
+
+    if (error) {
+      showToast('Failed to save', 'error');
+      return;
+    }
+
+    selectedItem.quantity = newQty;
+    const idx = items.findIndex(i => i.id === selectedItem.id);
+    if (idx !== -1) items[idx].quantity = newQty;
+
+    closeUpdateModal();
+    renderItems();
+    updateStats();
+    showToast(change >= 0 ? `+${change} saved` : `${change} saved`, 'success');
+  }
+
+  async function deleteItem() {
+    if (!selectedItem) return;
+    if (!confirm(`Delete "${selectedItem.name}"? This cannot be undone.`)) return;
+
+    const { error } = await sb.from('items').delete().eq('id', selectedItem.id);
+    if (error) { showToast('Failed to delete', 'error'); return; }
+
+    items = items.filter(i => i.id !== selectedItem.id);
+    closeUpdateModal();
+    renderItems();
+    updateStats();
+    showToast('Item deleted', 'success');
+  }
+
+  // ---- ADD MODAL ----
+  function openAddModal() {
+    document.getElementById('new-item-name').value = '';
+    document.getElementById('new-item-qty').value = '';
+    document.getElementById('new-item-threshold').value = '';
+    document.getElementById('add-modal').classList.add('open');
+    setTimeout(() => document.getElementById('new-item-name').focus(), 200);
+  }
+
+  function closeAddModal() {
+    document.getElementById('add-modal').classList.remove('open');
+  }
+
+  async function saveNewItem() {
+    const name = document.getElementById('new-item-name').value.trim();
+    const qty = parseInt(document.getElementById('new-item-qty').value);
+    const threshold = parseInt(document.getElementById('new-item-threshold').value);
+
+    if (!name) { showToast('Enter an item name', 'error'); return; }
+    if (isNaN(qty) || qty < 0) { showToast('Enter a valid quantity', 'error'); return; }
+    if (isNaN(threshold) || threshold < 0) { showToast('Enter a valid threshold', 'error'); return; }
+
+    const btn = document.getElementById('add-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+
+    const { data, error } = await sb.from('items')
+      .insert({ name, quantity: qty, low_stock_threshold: threshold })
+      .select()
+      .single();
+
+    btn.disabled = false;
+    btn.textContent = 'Create Item';
+
+    if (error) { showToast('Failed to create item', 'error'); return; }
+
+    items.push(data);
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    closeAddModal();
+    renderItems();
+    updateStats();
+    showToast(`"${name}" added`, 'success');
+  }
+
+  // Close modals on overlay click
+  document.getElementById('update-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeUpdateModal();
+  });
+  document.getElementById('add-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddModal();
+  });
+
+  // ---- TOAST ----
+  let toastTimer;
+  function showToast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ---- INIT ----
+  checkSession();
+</script>
+</body>
+  </html>
