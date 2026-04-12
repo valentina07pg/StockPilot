@@ -532,7 +532,7 @@
 <div id="auth-screen">
   <div class="auth-box">
     <div class="auth-logo">StockPilot</div>
-    <div class="auth-title">Sign in to your inventory</div>
+    <div class="auth-title" id="auth-title">Sign in to your inventory</div>
     <div class="field">
       <label>Email</label>
       <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
@@ -541,8 +541,12 @@
       <label>Password</label>
       <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
     </div>
-    <button class="btn-primary" id="login-btn" onclick="signIn()">Sign In</button>
+    <button class="btn-primary" id="login-btn" onclick="handleAuth()">Sign In</button>
     <div class="auth-error" id="auth-error"></div>
+    <div style="text-align:center;margin-top:16px;font-size:13px;color:#6b7280">
+      <span id="auth-toggle-text">Don't have an account?</span>
+      <button onclick="toggleAuthMode()" style="background:none;border:none;color:#4ade80;font-size:13px;cursor:pointer;padding:0;margin-left:6px;font-weight:600;" id="auth-toggle-btn">Create account</button>
+    </div>
   </div>
 </div>
 
@@ -597,7 +601,7 @@
 
     <div class="adjust-label">Adjust by (use - to subtract)</div>
     <div class="adjust-row">
-      <input class="adjust-input" type="number" id="adjust-input" placeholder="e.g. -5 or +10">
+      <input class="adjust-input" type="text" inputmode="decimal" id="adjust-input" placeholder="e.g. -5 or +10">
     </div>
     <div class="hint-text">Type a positive number to add, negative to subtract</div>
 
@@ -667,27 +671,43 @@
     loadItems();
   }
 
-  async function signIn() {
+  let authMode = 'signin';
+
+  function toggleAuthMode() {
+    authMode = authMode === 'signin' ? 'signup' : 'signin';
+    const isSignup = authMode === 'signup';
+    document.getElementById('auth-title').textContent = isSignup ? 'Create your account' : 'Sign in to your inventory';
+    document.getElementById('login-btn').textContent = isSignup ? 'Create Account' : 'Sign In';
+    document.getElementById('auth-toggle-text').textContent = isSignup ? 'Already have an account?' : "Don't have an account?";
+    document.getElementById('auth-toggle-btn').textContent = isSignup ? 'Sign in' : 'Create account';
+    document.getElementById('auth-error').style.display = 'none';
+  }
+
+  async function handleAuth() {
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
     const btn = document.getElementById('login-btn');
     const errEl = document.getElementById('auth-error');
 
-    if (!email || !password) {
-      showAuthError('Please enter your email and password.');
-      return;
-    }
+    if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+    if (authMode === 'signup' && password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
 
     btn.disabled = true;
-    btn.textContent = 'Signing in...';
+    btn.textContent = authMode === 'signup' ? 'Creating account...' : 'Signing in...';
     errEl.style.display = 'none';
 
-    const { error } = await sb.auth.signInWithPassword({ email, password });
+    let error;
+    if (authMode === 'signup') {
+      ({ error } = await sb.auth.signUp({ email, password }));
+      if (!error) { showAuthError('Account created! Check your email to confirm, or sign in now.'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
+    } else {
+      ({ error } = await sb.auth.signInWithPassword({ email, password }));
+    }
 
     if (error) {
       showAuthError(error.message);
       btn.disabled = false;
-      btn.textContent = 'Sign In';
+      btn.textContent = authMode === 'signup' ? 'Create Account' : 'Sign In';
     } else {
       showApp();
     }
@@ -899,4 +919,4 @@
   checkSession();
 </script>
 </body>
-  </html>
+</html>
