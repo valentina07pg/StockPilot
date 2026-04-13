@@ -83,12 +83,10 @@
   .status-dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
   .status-dot.ok { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
   .item-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .item-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .item-qty { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; }
   .item-qty.danger { color: var(--danger); }
   .item-qty.warn { color: var(--warn); }
   .item-qty.ok { color: var(--accent); }
-  .item-threshold { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
 
   .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
   .empty-state .big { font-size: 40px; margin-bottom: 12px; }
@@ -116,6 +114,13 @@
   .adjust-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 20px; outline: none; text-align: center; transition: border-color 0.2s; }
   .adjust-input:focus { border-color: var(--accent); }
   .hint-text { font-size: 12px; color: var(--muted); text-align: center; margin: 10px 0 20px; }
+
+  .threshold-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .threshold-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .threshold-box label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .threshold-box label.warn-label { color: var(--warn); }
+  .threshold-box label.danger-label { color: var(--danger); }
+  .threshold-box input { width: 100%; background: transparent; border: none; color: var(--text); font-family: 'DM Mono', monospace; font-size: 18px; outline: none; text-align: center; }
 
   .modal-actions { display: flex; gap: 10px; }
   .btn-cancel { flex: 1; background: none; border: 1px solid var(--border); border-radius: 10px; padding: 14px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
@@ -212,14 +217,30 @@
 <div class="modal-overlay" id="update-modal">
   <div class="modal">
     <div class="modal-title" id="modal-item-name">Item</div>
-    <div class="modal-subtitle">Update quantity</div>
+    <div class="modal-subtitle">Update quantity & thresholds</div>
+
     <div class="current-qty-display">
       <div class="label">Current Quantity</div>
       <div class="number" id="modal-current-qty">0</div>
     </div>
+
     <div class="adjust-label">Adjust by (use - to subtract)</div>
-    <input class="adjust-input" type="text" inputmode="decimal" id="adjust-input" placeholder="e.g. -5 or +10">
+    <input class="adjust-input" type="text" inputmode="text" id="adjust-input" placeholder="e.g. -5 or 10" autocomplete="off">
     <div class="hint-text">Positive to add, negative to subtract</div>
+
+    <div class="divider"></div>
+    <div class="adjust-label" style="margin-bottom:12px">Alert Thresholds</div>
+    <div class="threshold-row">
+      <div class="threshold-box">
+        <label class="warn-label">⚠ Yellow at</label>
+        <input type="text" inputmode="numeric" id="modal-warn-threshold" placeholder="e.g. 30" autocomplete="off">
+      </div>
+      <div class="threshold-box">
+        <label class="danger-label">🔴 Red at</label>
+        <input type="text" inputmode="numeric" id="modal-danger-threshold" placeholder="e.g. 10" autocomplete="off">
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeUpdateModal()">Cancel</button>
       <button class="btn-save" id="save-btn" onclick="saveUpdate()">Save</button>
@@ -233,9 +254,10 @@
   <div class="modal">
     <div class="modal-title">Add New Item</div>
     <div class="modal-subtitle">Enter item details</div>
-    <div class="add-field"><label>Item Name</label><input type="text" id="new-item-name" placeholder="e.g. Cardboard Boxes (Large)"></div>
-    <div class="add-field"><label>Starting Quantity</label><input type="number" id="new-item-qty" placeholder="e.g. 100" min="0"></div>
-    <div class="add-field"><label>Low Stock Alert At</label><input type="number" id="new-item-threshold" placeholder="e.g. 20" min="0"></div>
+    <div class="add-field"><label>Item Name</label><input type="text" id="new-item-name" placeholder="e.g. Cardboard Boxes" autocomplete="off"></div>
+    <div class="add-field"><label>Starting Quantity</label><input type="text" inputmode="numeric" id="new-item-qty" placeholder="e.g. 100" autocomplete="off"></div>
+    <div class="add-field"><label>🔴 Red Alert At (low stock)</label><input type="text" inputmode="numeric" id="new-item-threshold" placeholder="e.g. 10" autocomplete="off"></div>
+    <div class="add-field"><label>⚠ Yellow Alert At (warning)</label><input type="text" inputmode="numeric" id="new-item-warn" placeholder="e.g. 30 — optional" autocomplete="off"></div>
     <div class="modal-actions" style="margin-top:8px">
       <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
       <button class="btn-save" id="add-save-btn" onclick="saveNewItem()">Create Item</button>
@@ -248,7 +270,7 @@
   <div class="modal">
     <div class="modal-title">New Workspace</div>
     <div class="modal-subtitle">Give your inventory space a name</div>
-    <div class="add-field"><label>Workspace Name</label><input type="text" id="new-workspace-name" placeholder="e.g. Work, Home, Garage"></div>
+    <div class="add-field"><label>Workspace Name</label><input type="text" id="new-workspace-name" placeholder="e.g. Work, Home, Garage" autocomplete="off"></div>
     <div class="modal-actions" style="margin-top:8px">
       <button class="btn-cancel" onclick="closeCreateWorkspaceModal()">Cancel</button>
       <button class="btn-save" id="create-workspace-btn" onclick="createWorkspace()">Create</button>
@@ -263,7 +285,7 @@
     <div class="modal-subtitle" id="members-workspace-name"></div>
     <div id="invite-section">
       <div class="section-title" style="margin-bottom:12px">Invite Someone</div>
-      <div class="add-field"><label>Their Email</label><input type="email" id="invite-email" placeholder="friend@example.com"></div>
+      <div class="add-field"><label>Their Email</label><input type="email" id="invite-email" placeholder="friend@example.com" autocomplete="off"></div>
       <div class="add-field">
         <label>Role</label>
         <select id="invite-role">
@@ -330,6 +352,8 @@ async function handleAuth() {
     btn.disabled = false; btn.textContent = 'Sign In';
     if (error) { showAuthError(error.message); return; }
     currentUser = data.user;
+    // match any pending invites for this email
+    await sb.from('workspace_members').update({ user_id: currentUser.id }).eq('invited_email', currentUser.email).neq('user_id', currentUser.id);
     showWorkspaces();
   }
 }
@@ -430,8 +454,10 @@ async function loadItems() {
 }
 
 function getStatus(item) {
-  if (item.quantity <= item.low_stock_threshold) return 'danger';
-  if (item.quantity <= item.low_stock_threshold * 1.5) return 'warn';
+  const danger = item.low_stock_threshold ?? 0;
+  const warn = item.warn_threshold ?? (danger * 1.5);
+  if (item.quantity <= danger) return 'danger';
+  if (item.quantity <= warn) return 'warn';
   return 'ok';
 }
 
@@ -447,7 +473,7 @@ function renderItems() {
     const s = getStatus(item);
     return `<div class="item-card ${s}" onclick="openUpdateModal('${item.id}')">
       <div class="item-left"><div class="status-dot ${s}"></div><div class="item-name">${escHtml(item.name)}</div></div>
-      <div class="item-right"><div class="item-qty ${s}">${item.quantity}</div><div class="item-threshold">/ ${item.low_stock_threshold}</div></div>
+      <div class="item-qty ${s}">${item.quantity}</div>
     </div>`;
   }).join('');
 }
@@ -458,12 +484,15 @@ function updateStats() {
   document.getElementById('stat-ok').textContent = items.filter(i => getStatus(i) === 'ok').length;
 }
 
+// ---- UPDATE MODAL ----
 function openUpdateModal(id) {
   selectedItem = items.find(i => i.id === id);
   if (!selectedItem) return;
   document.getElementById('modal-item-name').textContent = selectedItem.name;
   document.getElementById('modal-current-qty').textContent = selectedItem.quantity;
   document.getElementById('adjust-input').value = '';
+  document.getElementById('modal-warn-threshold').value = selectedItem.warn_threshold ?? '';
+  document.getElementById('modal-danger-threshold').value = selectedItem.low_stock_threshold ?? '';
   document.getElementById('delete-item-btn').style.display = currentRole === 'manager' ? 'block' : 'none';
   document.getElementById('update-modal').classList.add('open');
   setTimeout(() => document.getElementById('adjust-input').focus(), 200);
@@ -471,20 +500,47 @@ function openUpdateModal(id) {
 function closeUpdateModal() { document.getElementById('update-modal').classList.remove('open'); selectedItem = null; }
 
 async function saveUpdate() {
-  const raw = document.getElementById('adjust-input').value;
-  const change = parseInt(raw);
-  if (isNaN(change) || raw.trim() === '') { showToast('Enter a number', 'error'); return; }
-  const newQty = selectedItem.quantity + change;
-  if (newQty < 0) { showToast('Quantity cannot go below 0', 'error'); return; }
+  const raw = document.getElementById('adjust-input').value.trim();
+  const warnRaw = document.getElementById('modal-warn-threshold').value.trim();
+  const dangerRaw = document.getElementById('modal-danger-threshold').value.trim();
+
+  const updateData = {};
+
+  // Quantity change
+  if (raw !== '') {
+    const change = parseInt(raw);
+    if (isNaN(change)) { showToast('Enter a valid number to adjust', 'error'); return; }
+    const newQty = selectedItem.quantity + change;
+    if (newQty < 0) { showToast('Quantity cannot go below 0', 'error'); return; }
+    updateData.quantity = newQty;
+  }
+
+  // Thresholds
+  if (dangerRaw !== '') {
+    const d = parseInt(dangerRaw);
+    if (isNaN(d) || d < 0) { showToast('Enter a valid red threshold', 'error'); return; }
+    updateData.low_stock_threshold = d;
+  }
+  if (warnRaw !== '') {
+    const w = parseInt(warnRaw);
+    if (isNaN(w) || w < 0) { showToast('Enter a valid yellow threshold', 'error'); return; }
+    updateData.warn_threshold = w;
+  }
+
+  if (Object.keys(updateData).length === 0) { closeUpdateModal(); return; }
+
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = 'Saving...';
-  const { error } = await sb.from('items').update({ quantity: newQty }).eq('id', selectedItem.id);
+  const { error } = await sb.from('items').update(updateData).eq('id', selectedItem.id);
   btn.disabled = false; btn.textContent = 'Save';
   if (error) { showToast('Failed to save', 'error'); return; }
+
   const idx = items.findIndex(i => i.id === selectedItem.id);
-  if (idx !== -1) items[idx].quantity = newQty;
+  if (idx !== -1) items[idx] = { ...items[idx], ...updateData };
+
   closeUpdateModal(); renderItems(); updateStats();
-  showToast(change >= 0 ? `+${change} saved` : `${change} saved`, 'success');
+  const change = updateData.quantity !== undefined ? updateData.quantity - selectedItem.quantity : null;
+  showToast(change !== null ? (change >= 0 ? `+${change} saved` : `${change} saved`) : 'Saved!', 'success');
 }
 
 async function deleteItem() {
@@ -496,10 +552,9 @@ async function deleteItem() {
   showToast('Item deleted', 'success');
 }
 
+// ---- ADD ITEM MODAL ----
 function openAddModal() {
-  document.getElementById('new-item-name').value = '';
-  document.getElementById('new-item-qty').value = '';
-  document.getElementById('new-item-threshold').value = '';
+  ['new-item-name','new-item-qty','new-item-threshold','new-item-warn'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('add-modal').classList.add('open');
   setTimeout(() => document.getElementById('new-item-name').focus(), 200);
 }
@@ -509,12 +564,20 @@ async function saveNewItem() {
   const name = document.getElementById('new-item-name').value.trim();
   const qty = parseInt(document.getElementById('new-item-qty').value);
   const threshold = parseInt(document.getElementById('new-item-threshold').value);
+  const warnRaw = document.getElementById('new-item-warn').value.trim();
+  const warn = warnRaw !== '' ? parseInt(warnRaw) : null;
+
   if (!name) { showToast('Enter an item name', 'error'); return; }
   if (isNaN(qty) || qty < 0) { showToast('Enter a valid quantity', 'error'); return; }
-  if (isNaN(threshold) || threshold < 0) { showToast('Enter a valid threshold', 'error'); return; }
+  if (isNaN(threshold) || threshold < 0) { showToast('Enter a valid red threshold', 'error'); return; }
+  if (warn !== null && (isNaN(warn) || warn < 0)) { showToast('Enter a valid yellow threshold', 'error'); return; }
+
   const btn = document.getElementById('add-save-btn');
   btn.disabled = true; btn.textContent = 'Creating...';
-  const { data, error } = await sb.from('items').insert({ name, quantity: qty, low_stock_threshold: threshold, workspace_id: currentWorkspace.id }).select().single();
+  const insertData = { name, quantity: qty, low_stock_threshold: threshold, workspace_id: currentWorkspace.id };
+  if (warn !== null) insertData.warn_threshold = warn;
+
+  const { data, error } = await sb.from('items').insert(insertData).select().single();
   btn.disabled = false; btn.textContent = 'Create Item';
   if (error) { showToast('Failed to create item', 'error'); return; }
   items.push(data); items.sort((a, b) => a.name.localeCompare(b.name));
@@ -525,8 +588,6 @@ async function saveNewItem() {
 // ---- MEMBERS ----
 async function openMembersModal() {
   document.getElementById('members-workspace-name').textContent = currentWorkspace.name;
-  document.getElementById('invite-section').style.display = 'block';
-  document.getElementById('delete-workspace-btn').style.display = 'block';
   document.getElementById('members-modal').classList.add('open');
   await loadMembers();
 }
@@ -601,8 +662,11 @@ function escHtml(str) {
 
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
-  if (session) { currentUser = session.user; showWorkspaces(); }
-  else show('auth-screen');
+  if (session) {
+    currentUser = session.user;
+    await sb.from('workspace_members').update({ user_id: currentUser.id }).eq('invited_email', currentUser.email).neq('user_id', currentUser.id);
+    showWorkspaces();
+  } else show('auth-screen');
 }
 init();
 </script>
