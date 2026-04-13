@@ -353,7 +353,7 @@ async function handleAuth() {
     if (error) { showAuthError(error.message); return; }
     currentUser = data.user;
     // match any pending invites for this email
-    await sb.from('workspace_members').update({ user_id: currentUser.id }).eq('invited_email', currentUser.email).neq('user_id', currentUser.id);
+    await sb.from('workspace_members').update({ user_id: currentUser.id }).eq('invited_email', currentUser.email).is('user_id', null);
     showWorkspaces();
   }
 }
@@ -617,7 +617,7 @@ async function inviteMember() {
   if (!email) { showToast('Enter an email', 'error'); return; }
   const { error } = await sb.from('workspace_members').insert({
     workspace_id: currentWorkspace.id,
-    user_id: currentUser.id,
+
     role,
     invited_email: email
   });
@@ -664,7 +664,7 @@ async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     currentUser = session.user;
-    await sb.from('workspace_members').update({ user_id: currentUser.id }).eq('invited_email', currentUser.email).neq('user_id', currentUser.id);
+    await sb.from('workspace_members').update({ user_id: currentUser.id }).eq('invited_email', currentUser.email).is('user_id', null);
     showWorkspaces();
   } else show('auth-screen');
 }
